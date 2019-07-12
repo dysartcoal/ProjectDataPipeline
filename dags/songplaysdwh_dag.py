@@ -6,20 +6,15 @@ from airflow.operators import (StageToRedshiftOperator, LoadFactOperator,
                                 LoadDimensionOperator, DataQualityOperator)
 from helpers import SqlQueries
 
-# AWS_KEY= os.environ.get('AWS_KEY')
-# AWS_S ECRET = os.environ.get('AWS_SECRET')
 
 default_args = {
     'owner': 'udacity',
     'depends_on_past': False,
     'start_date': datetime(2019, 7, 11),
-    'email_on_retry': False,
     'retries': 3,
     'retry_delay': timedelta(minutes=5),
-    # 'queue': 'bash_queue',
-    # 'pool': 'backfill',
-    # 'priority_weight': 10,
-    # 'end_date': datetime(2016, 1, 1),
+    'email_on_retry': False,
+    'catchup': False
 }
 
 dag = DAG('udac_example_dag',
@@ -71,4 +66,3 @@ run_quality_checks = DataQualityOperator(
 )
 
 end_operator = DummyOperator(task_id='Stop_execution',  dag=dag)
-
