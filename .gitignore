@@ -1,3 +1,6 @@
+# Project specific files
+dags/udac_example_dag.py
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
