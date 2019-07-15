@@ -10,7 +10,8 @@ from helpers import SqlQueries
 default_args = {
     'owner': 'udacity',
     'depends_on_past': False,
-    'start_date': datetime(2019, 7, 11),
+    'start_date': datetime(2018, 11, 30, 23, 0, 0),
+    'end_date': datetime(2018, 11, 30, 23, 0, 0),
     'retries': 3,
     'retry_delay': timedelta(minutes=5),
     'email_on_retry': False,
@@ -27,12 +28,42 @@ start_operator = DummyOperator(task_id='Begin_execution',  dag=dag)
 
 stage_events_to_redshift = StageToRedshiftOperator(
     task_id='Stage_events',
-    dag=dag
+    dag=dag,
+    redshift_conn_id='redshift',
+    aws_credentials_id='aws_credentials',
+    table='staging_events',
+    s3_bucket='udacity-dend',
+    s3_key='log_data/{execution_date.year}/{execution_date.month}',
+    region='us-west-2',
+    data_format = 'json',
+    data_format_args = "'s3://udacity-dend/log_json_path.json'",
+    data_format_kwargs = None,
+    file_compression = '',
+    data_conversion_args = None,
+    data_conversion_kwargs = None,
+    data_load_args = None,
+    data_load_kwargs = {'STATUPDATE':'OFF'},
+    del_existing = True
 )
 
 stage_songs_to_redshift = StageToRedshiftOperator(
     task_id='Stage_songs',
-    dag=dag
+    dag=dag,
+    redshift_conn_id='redshift',
+    aws_credentials_id='aws_credentials',
+    table='staging_songs',
+    s3_bucket='udacity-dend',
+    s3_key=s3_key_song_data,
+    region='us-west-2',
+    data_format = 'json',
+    data_format_args = "'auto'",
+    data_format_kwargs = None,
+    file_compression = '',
+    data_conversion_args = None,
+    data_conversion_kwargs = None,
+    data_load_args = None,
+    data_load_kwargs = {'STATUPDATE':'OFF'},
+    del_existing = True
 )
 
 load_songplays_table = LoadFactOperator(
