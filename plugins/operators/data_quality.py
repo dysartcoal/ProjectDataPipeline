@@ -35,16 +35,17 @@ class DataQualityOperator(BaseOperator):
 
         # Check that primary_key is unique
         if self.primary_key != "":
-            check_primary_key_sql = """SELECT {}, COUNT({}) AS pkey_count
+            check_primary_key_sql = """ SELECT COUNT(*) FROM
+                    (SELECT {}, COUNT({}) AS pkey_count
                     FROM {}
                     GROUP BY {}
-                    HAVING pkey_count > 1
+                    HAVING pkey_count > 1) dup_pkeys
                     """
             records = redshift_hook.get_records(check_primary_key_sql.format(self.primary_key,
                                                                             self.primary_key,
                                                                             self.table,
                                                                             self.primary_key))
-            if len(records) > 0 and len(records[0]) > 0:
+            if len(records) > 0 and len(records[0]) > 0 and records[0][0] > 0:
                 raise ValueError("Data quality check failed. {} has duplicates in {} column"
                                 .format(self.table, self.primary_key))
             self.log.info(f"Data quality check for primary_key {self.primary_key} " +
@@ -55,7 +56,7 @@ class DataQualityOperator(BaseOperator):
             check_for_nulls_sql = "SELECT count(*) FROM {} WHERE {} is NULL"
             for col in self.not_nulls:
                 records = redshift_hook.get_records(check_for_nulls_sql.format(self.table, col))
-                if len(records) > 0 and len(records[0]) == 1 and records[0][0] > 0:
+                if len(records) > 0 and len(records[0]) > 0 and records[0][0] > 0:
                     num_records = records[0][0]
                     raise ValueError("Data quality check failed. {} contains {} null(s) in col {}"
                                     .format(self.table, num_records, col))
