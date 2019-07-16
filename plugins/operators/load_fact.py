@@ -6,17 +6,30 @@ class LoadFactOperator(BaseOperator):
 
     ui_color = '#F98866'
 
+    insert_fact_sql_template = """
+    INSERT INTO {dest_table}
+    ({select_sql})
+    """
+
     @apply_defaults
     def __init__(self,
-                 # Define your operators params (with defaults) here
-                 # Example:
-                 # conn_id = your-connection-name
-                 *args, **kwargs):
+                redshift_conn_id="",
+                dest_table="",
+                select_sql="",
+                *args, **kwargs):
 
         super(LoadFactOperator, self).__init__(*args, **kwargs)
-        # Map params here
-        # Example:
-        # self.conn_id = conn_id
+        self.redshift_conn_id=redshift_conn_id
+        self.dest_table=dest_table
+        self.select_sql=select_sql
 
     def execute(self, context):
-        self.log.info('LoadFactOperator not implemented yet')
+        self.log.info(f'LoadFactOperator dest_table: {self.dest_table}')
+
+        redshift_hook = PostgresHook(self.redshift_conn_id)
+        formatted_insert_sql = (LoadFactOperator
+                                .insert_fact_sql_template
+                                .format(dest_table=self.dest_table,
+                                        select_sql=self.select_sql))
+
+        redshift_hook.run(formatted_insert_sql)
