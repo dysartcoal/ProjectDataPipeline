@@ -1,5 +1,6 @@
 # Project specific files
 dags/udac_example_dag.py
+*.out
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
