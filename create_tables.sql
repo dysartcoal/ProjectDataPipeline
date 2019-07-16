@@ -84,7 +84,13 @@ CREATE TABLE public.users (
 	CONSTRAINT users_pkey PRIMARY KEY (userid)
 );
 
-
-
-
-
+CREATE TABLE public.time (
+	 start_time timestamp NOT NULL,
+	 hour int,
+	 day int ,
+	 week int,
+	 month int,
+	 year int ,
+	 weekday int,
+	 CONSTRAINT time_pkey PRIMARY KEY (start_time)
+);
