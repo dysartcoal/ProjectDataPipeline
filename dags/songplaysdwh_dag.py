@@ -6,9 +6,9 @@ from airflow.operators import (StageToRedshiftOperator, LoadFactOperator,
                                 LoadDimensionOperator, DataQualityOperator)
 from helpers import SqlQueries
 
-s3_key_song_data = 'song_data/A/A/A'
-s3_key_log_data = 'log_data/{execution_date.year}/{execution_date.month}/2018-11-16-events.json'
-retry_delay = timedelta(minutes=1)
+s3_key_song_data = 'song_data'
+s3_key_log_data = 'log_data/{execution_date.year}/{execution_date.month}'
+retry_delay = timedelta(minutes=5)
 
 default_args = {
     'owner': 'udacity',
@@ -113,50 +113,125 @@ load_time_dimension_table = LoadDimensionOperator(
     append=False
 )
 
+# Assertion function returns True when conditions met
+def count_gt_zero(records):
+    if len(records) < 1 or len(records[0]) < 1:
+        return False
+    num_records = records[0][0]
+    if num_records < 1:
+        return False
+    return True
+
+# Assertion function returns True when conditions met
+def count_eq_zero(records):
+    if len(records) > 0 and len(records[0]) > 0:
+        num_records = records[0][0]
+        if num_records > 0:
+            return False
+    return True
+
+# Return test dict to enable testing for existence of data by DataQualityOperator
+def get_data_exists_test(table=''):
+    return {'sql': "SELECT COUNT(*) FROM {}".format(table),
+            'assertion': count_gt_zero,
+            'error_message': "Data quality check failed. {} contained 0 rows".format(table),
+            'log_message':('Data quality check for data on table {} passed with > 0 records'
+                            .format(table))}
+
+# Return test dict to enable testing of primary key for uniqueness by DataQualityOperator
+def get_primary_key_test(table='', primary_key=''):
+    return {'sql': """SELECT COUNT(*) FROM
+                            (SELECT COUNT({}) AS pkey_count
+                            FROM {}
+                            GROUP BY {}
+                            HAVING pkey_count > 1) dup_pkeys
+                            """.format(primary_key, table, primary_key),
+            'assertion': count_eq_zero,
+            'error_message': ("Data quality check failed. {} has duplicates in {} column"
+                            .format(table, primary_key)),
+            'log_message':("Data quality check for primary_key {} ".format(primary_key) +
+                        "on table {} passed with no duplicates".format(table))}
+
+# Return test dict to enable checking that there are no nulls for a column by DataQualityOperator
+def get_not_nulls_test(table='', field=''):
+    return {'sql': "SELECT count(*) FROM {} WHERE {} is NULL".format(table, field),
+            'assertion': count_eq_zero,
+            'error_message': ("Data quality check failed. {} contains null(s) in col {}"
+                            .format(table, field)),
+            'log_message':("Data quality check passed.  Zero nulls in col {} on table {}"
+                        .format(field, table))}
+
+# songplays tests
+data_exists_test = get_data_exists_test(table='songplays')
+primary_key_test = get_primary_key_test(table='songplays', primary_key='playid')
+not_null_start_time_test = get_not_nulls_test(table='songplays', field='start_time')
+not_null_userid_test = get_not_nulls_test(table='songplays', field='userid')
+all_tests = [data_exists_test,
+            primary_key_test,
+            not_null_start_time_test,
+            not_null_userid_test]
+
 run_songplay_quality_checks = DataQualityOperator(
     task_id='Run_songplay_data_quality_checks',
     dag=dag,
     redshift_conn_id='redshift',
-    table='songplays',
-    primary_key='playid',
-    not_nulls=['start_time', 'userid']
+    tests=all_tests
 )
+
+# user tests
+data_exists_test = get_data_exists_test(table='users')
+primary_key_test = get_primary_key_test(table='users', primary_key='userid')
+all_tests = [data_exists_test,
+            primary_key_test]
 
 run_user_quality_checks = DataQualityOperator(
     task_id='Run_user_data_quality_checks',
     dag=dag,
     redshift_conn_id='redshift',
-    table='users',
-    primary_key='userid',
-    not_nulls=None
+    tests=all_tests
 )
+
+# song tests
+data_exists_test = get_data_exists_test(table='songs')
+primary_key_test = get_primary_key_test(table='songs', primary_key='songid')
+not_null_test = get_not_nulls_test(table='songs', field='title')
+all_tests = [data_exists_test,
+            primary_key_test,
+            not_null_test]
 
 run_song_quality_checks = DataQualityOperator(
     task_id='Run_song_data_quality_checks',
     dag=dag,
     redshift_conn_id='redshift',
-    table='songs',
-    primary_key='songid',
-    not_nulls=['title']
+    tests=all_tests
 )
+
+# artist tests
+data_exists_test = get_data_exists_test(table='artists')
+not_null_test = get_not_nulls_test(table='artists', field='artistid')
+all_tests = [data_exists_test,
+            not_null_test]
 
 run_artist_quality_checks = DataQualityOperator(
     task_id='Run_artist_data_quality_checks',
     dag=dag,
     redshift_conn_id='redshift',
-    table='artists',
-    primary_key='',
-    not_nulls=['artistid']
+    tests=all_tests
 )
+
+# time tests
+data_exists_test = get_data_exists_test(table='time')
+primary_key_test = get_primary_key_test(table='time', primary_key='start_time')
+all_tests = [data_exists_test,
+            primary_key_test]
 
 run_time_quality_checks = DataQualityOperator(
     task_id='Run_time_data_quality_checks',
     dag=dag,
     redshift_conn_id='redshift',
-    table='time',
-    primary_key='start_time',
-    not_nulls=None
+    tests=all_tests
 )
+
 
 end_operator = DummyOperator(task_id='Stop_execution',  dag=dag)
 
