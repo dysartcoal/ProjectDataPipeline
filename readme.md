@@ -46,3 +46,9 @@ This project implements in Apache Airflow the workflow shown in the DAG below:
  - _load_fact.py_ : Load a fact table on Redshift
  - _load_dimension.py_ : Load a dimension table on Redshift
  - _data_quality.py_ : Execute quality checks on Redshift database tables.  Quality checks enable any choice of SQL to be passed to the Operator along with an assertion test to validate the result.
+
+ ## Conclusions
+
+ The data pipeline worked well and correctly populated the staging tables before transforming and loading the data into the data warehouse tables.  
+
+ The Data Quality checks were successful in failing the Run_time_data_quality_checks and Run user_data_quality_checks tasks due to the identification of duplicate primary_key fields (which is not a constraint which is enforced by Redshift) in the time table (due to multiple events with the same timestamp) and the user table (due to the sql statement failing to discount duplicate userids caused by users upgrading their payment level within the event log timeframe.)
